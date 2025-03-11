@@ -2,12 +2,15 @@ package com.android.example.google_maps_md2_jc
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -43,6 +46,14 @@ fun MapScreen(fusedLocationClient: FusedLocationProviderClient) {
 
     var userLocation by remember { mutableStateOf<LatLng?>(null) }
     var mapProperties by remember { mutableStateOf(MapProperties(isMyLocationEnabled = false)) }
+    val cameraPositionState = rememberCameraPositionState()
+
+    // Menu state
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        permissionState.launchMultiplePermissionRequest()
+    }
 
     LaunchedEffect(permissionState.allPermissionsGranted) {
         if (permissionState.allPermissionsGranted) {
@@ -53,22 +64,49 @@ fun MapScreen(fusedLocationClient: FusedLocationProviderClient) {
         }
     }
 
+    LaunchedEffect(userLocation) {
+        userLocation?.let {
+            cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(it, 15f))
+        }
+    }
+
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Map") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("Map") },
+                actions = {
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Go to API Activity") },
+                                onClick = {
+                                    menuExpanded = false
+                                    context.startActivity(Intent(context, SecondActivity::class.java))
+                                }
+                            )
+                        }
+                    }
+                }
+            )
+        }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 properties = mapProperties,
-                uiSettings = MapUiSettings(zoomControlsEnabled = false)
+                uiSettings = MapUiSettings(zoomControlsEnabled = true), // Show zoom buttons
+                cameraPositionState = cameraPositionState
             ) {
                 userLocation?.let {
-                    Marker(
-                        state = MarkerState(position = it),
-                        title = "Your Location"
-                    )
+                    // Removed the marker on user's exact location, only using blue dot.
 
-                    // Add hardcoded nearby places
+                    // Hardcoded nearby places
                     val places = listOf(
                         LatLng(it.latitude + 0.002, it.longitude + 0.002),
                         LatLng(it.latitude - 0.002, it.longitude - 0.002)
@@ -79,21 +117,6 @@ fun MapScreen(fusedLocationClient: FusedLocationProviderClient) {
                             title = "Point of Interest",
                             snippet = "Description of the place"
                         )
-                    }
-                }
-            }
-
-            if (!permissionState.allPermissionsGranted) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text("Location permission is required for this app to function.", Modifier.padding(16.dp))
-                    Button(
-                        onClick = { permissionState.launchMultiplePermissionRequest() },
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text("Grant Location Permission")
                     }
                 }
             }
