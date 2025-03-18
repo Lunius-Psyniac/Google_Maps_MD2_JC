@@ -8,9 +8,12 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +22,11 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
+
+data class Spell(
+    val name: String,
+    val description: String
+)
 
 class SecondActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,9 +42,11 @@ class SecondActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ApiListScreen(onNavigateBack: () -> Unit) {
-    var dataList by remember { mutableStateOf<List<String>>(emptyList()) }
+    var dataList by remember { mutableStateOf<List<Spell>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var menuExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         try {
@@ -50,11 +60,28 @@ fun ApiListScreen(onNavigateBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("API List") }, actions = {
-                TextButton(onClick = onNavigateBack) {
-                    Text("Back to Map")
+            TopAppBar(
+                title = { Text("Spell Reader") },
+                actions = {
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Menu")
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Map") },
+                                onClick = {
+                                    menuExpanded = false
+                                    context.startActivity(Intent(context, MainActivity::class.java))
+                                }
+                            )
+                        }
+                    }
                 }
-            })
+            )
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
@@ -62,8 +89,8 @@ fun ApiListScreen(onNavigateBack: () -> Unit) {
                 isLoading -> CircularProgressIndicator(modifier = Modifier.padding(16.dp))
                 errorMessage != null -> Text(text = errorMessage!!, modifier = Modifier.padding(16.dp))
                 else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(dataList) { item ->
-                        ListItem(title = item)
+                    items(dataList) { spell ->
+                        ListItem(spell = spell)
                     }
                 }
             }
@@ -72,23 +99,43 @@ fun ApiListScreen(onNavigateBack: () -> Unit) {
 }
 
 @Composable
-fun ListItem(title: String) {
+fun ListItem(spell: Spell) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Text(text = title, modifier = Modifier.padding(16.dp))
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = spell.name,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = spell.description,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
     }
 }
 
-suspend fun fetchData(): List<String> {
+suspend fun fetchData(): List<Spell> {
     return withContext(Dispatchers.IO) {
-        val url = URL("https://jsonplaceholder.typicode.com/posts")
+        val url = URL("https://hp-api.onrender.com/api/spells")
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         val response = connection.inputStream.bufferedReader().use { it.readText() }
         val jsonArray = JSONArray(response)
-        List(10) { i -> jsonArray.getJSONObject(i).getString("title") }
+        List(jsonArray.length()) { i ->
+            val jsonObject = jsonArray.getJSONObject(i)
+            Spell(
+                name = jsonObject.getString("name"),
+                description = jsonObject.getString("description")
+            )
+        }
     }
 }
