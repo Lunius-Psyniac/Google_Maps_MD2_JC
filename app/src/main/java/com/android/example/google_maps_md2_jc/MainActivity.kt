@@ -84,7 +84,7 @@ fun MapScreen(fusedLocationClient: FusedLocationProviderClient) {
                             onDismissRequest = { menuExpanded = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Go to API Activity") },
+                                text = { Text("Spell Reader") },
                                 onClick = {
                                     menuExpanded = false
                                     context.startActivity(Intent(context, SecondActivity::class.java))

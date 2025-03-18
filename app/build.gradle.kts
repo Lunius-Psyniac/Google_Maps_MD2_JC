@@ -1,8 +1,13 @@
+import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
+
+val localProperties = gradleLocalProperties(rootDir, providers)
+val mapsApiKey = localProperties.getProperty("MAPS_API_KEY") ?: ""
 
 android {
     namespace = "com.android.example.google_maps_md2_jc"
@@ -14,6 +19,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -36,6 +44,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
